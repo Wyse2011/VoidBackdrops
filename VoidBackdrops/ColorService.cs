@@ -17,10 +17,17 @@ namespace VoidBackdrops;
 public sealed class ColorService : IDisposable
 {
     public const string Tag = "VoidBackdrops.Color";
+    // Overlay tag used by the old "Sanctum Presets" plugin; cleared once so migrating gives a clean slate.
+    public const string LegacyTag = "SanctumPresets.Color";
     public const string ColorFolderName = "_SanctumColors";
     /// <summary> Folder used by 1.9-1.11 for converted sounds (sounds were removed; leftovers are deleted). </summary>
     public const string OldAudioFolderName = "_SanctumAudio";
-    public const int Priority = 9999;
+    // Color overlay priority. Must sit ABOVE the base mod's priority in Penumbra, or the base mod's
+    // plain effect file wins and the recolor never shows (the rename reimported the base mod at 10000,
+    // which was beating the old 9999 overlay). Kept well clear of any realistic base-mod priority.
+    public const int Priority = 1000000;
+    // Priority used by this plugin's 1.0.x overlays and by the old "Sanctum Presets" plugin; cleared once on start.
+    public const int LegacyPriority = 9999;
 
     private readonly IPenumbra penumbra;
     private readonly Controller controller;
@@ -28,6 +35,7 @@ public sealed class ColorService : IDisposable
     private readonly string legacyDir;
     private readonly object dueLock = new();
     private string? colorDir;
+    private bool legacyCleared;
     private List<string> appliedFiles = new();
 
     private DateTime dueAt = DateTime.MaxValue;
@@ -71,6 +79,19 @@ public sealed class ColorService : IDisposable
     /// <summary> Called every frame. Applies pending changes and re-applies after logins or restarts. </summary>
     public void Update()
     {
+        if (!legacyCleared)
+        {
+            var pc = penumbra.GetPlayerCollection();
+            if (pc != null)
+            {
+                // Clear the old Sanctum overlay, and any 9999-priority overlay left by a previous
+                // Void Backdrops build, so the new high-priority overlay is the only color layer.
+                try { penumbra.RemoveTempMod(LegacyTag, pc.Value.Id, LegacyPriority); } catch { /* best effort */ }
+                try { penumbra.RemoveTempMod(Tag, pc.Value.Id, LegacyPriority); } catch { /* best effort */ }
+                legacyCleared = true;
+            }
+        }
+
         var now = Now();
         if (now >= dueAt)
         {

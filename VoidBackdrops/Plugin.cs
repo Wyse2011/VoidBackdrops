@@ -19,6 +19,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
 
     private const string Command = "/voidbackdrops";
+    private const string CommandShort = "/void";
 
     public Configuration Configuration { get; }
     public Controller Controller { get; }
@@ -59,6 +60,10 @@ public sealed class Plugin : IDalamudPlugin
         {
             HelpMessage = "Open Void Backdrops. \"/voidbackdrops <preset name>\" applies a preset, \"/voidbackdrops reset\" clears every slot, \"/voidbackdrops list\" lists presets, \"/voidbackdrops note <text>\" adds a quick note.",
         });
+        CommandManager.AddHandler(CommandShort, new CommandInfo(OnCommand)
+        {
+            HelpMessage = "Open Void Backdrops (same as /voidbackdrops, takes the same options).",
+        });
 
         PluginInterface.UiBuilder.Draw         += windowSystem.Draw;
         PluginInterface.UiBuilder.Draw         += FileDialog.Draw;
@@ -81,6 +86,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleMainUi;
         windowSystem.RemoveAllWindows();
         CommandManager.RemoveHandler(Command);
+        CommandManager.RemoveHandler(CommandShort);
     }
 
     private void OnFrameworkUpdate(IFramework framework)
