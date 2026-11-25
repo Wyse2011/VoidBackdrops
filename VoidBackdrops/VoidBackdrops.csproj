@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <!-- The release workflow overrides this with the release tag (v1.2.0 -> 1.2.0.0). -->
+    <Version>1.0.0.0</Version>
+    <AssemblyName>VoidBackdrops</AssemblyName>
+    <Author>Void</Author>
+    <Name>Void Backdrops</Name>
+    <Punchline>Named presets and notes for the Void Backdrops Penumbra mod.</Punchline>
+    <Description>Pick effects for each Void Backdrops slot with searchable dropdowns, recolor each slot with its own color, cycle colors (Chroma), adjust size and position, save setups as named presets, switch looks with one click or /voidbackdrops &lt;preset&gt;, and keep notes linked to effects and presets that export to a .txt file. Requires Penumbra and the Void Backdrops mod.</Description>
+    <Tags>penumbra;vfx;presets;housing</Tags>
+  </PropertyGroup>
+</Project>
