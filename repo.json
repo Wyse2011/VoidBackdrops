@@ -1,1 +1,27 @@
-[]
+[
+  {
+    "Author": "Void",
+    "Name": "Void Backdrops",
+    "InternalName": "VoidBackdrops",
+    "AssemblyVersion": "1.0.0.0",
+    "TestingAssemblyVersion": "1.0.0.0",
+    "Punchline": "Named presets and notes for the Void Backdrops Penumbra mod.",
+    "Description": "Pick effects for each Void Backdrops slot with searchable dropdowns, recolor each slot with its own color, cycle colors (Chroma), adjust size and position, save setups as named presets, switch looks with one click or /voidbackdrops <preset>, and keep notes linked to effects and presets that export to a .txt file. Requires Penumbra and the Void Backdrops mod.",
+    "ApplicableVersion": "any",
+    "RepoUrl": "https://github.com/Wyse2011/VoidBackdrops",
+    "Tags": [
+      "penumbra",
+      "vfx",
+      "presets",
+      "housing"
+    ],
+    "DalamudApiLevel": 15,
+    "TestingDalamudApiLevel": 15,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "LastUpdate": 1795580371,
+    "DownloadLinkInstall": "https://github.com/Wyse2011/VoidBackdrops/releases/download/v1.0/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Wyse2011/VoidBackdrops/releases/download/v1.0/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Wyse2011/VoidBackdrops/releases/download/v1.0/latest.zip"
+  }
+]
