@@ -1,9 +1,8 @@
 name: Build
 
-# Checks that every push and pull request still compiles. Nothing is published.
+# Compile check for pull requests only. Pushes to main are built and released by release.yml,
+# so there is no need to build them here as well.
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
 

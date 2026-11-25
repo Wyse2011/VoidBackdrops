@@ -1,11 +1,16 @@
 name: Release
 
-# Runs when you publish a GitHub Release (tag like v1.2.0).
-# Builds the plugin, attaches latest.zip to the release, and updates repo.json
-# so everyone using the custom repository gets the update in /xlplugins.
+# Every push to main publishes the next release automatically:
+# it works out the next version from the latest tag, creates that tag and a GitHub Release,
+# attaches latest.zip, and updates repo.json so /xlplugins gets the update.
 on:
-  release:
-    types: [ published ]
+  push:
+    branches: [ main ]
+
+# Never run two releases at once, so version bumps stay sequential.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -17,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0          # need the full tag history to work out the next version
 
       - name: Install .NET
         uses: actions/setup-dotnet@v5
@@ -30,15 +35,23 @@ jobs:
           Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
           Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
 
-      - name: Work out version from the tag
+      - name: Work out the next version
         id: ver
         shell: pwsh
         run: |
-          $v = "${{ github.event.release.tag_name }}".TrimStart('v', 'V')
-          $parts = $v.Split('.')
-          if ($parts.Count -lt 2 -or ($parts | Where-Object { $_ -notmatch '^\d+$' })) { throw "Tag must look like v1.2.0 (got '${{ github.event.release.tag_name }}')" }
-          while ($parts.Count -lt 4) { $parts += '0' }
-          "version=$($parts -join '.')" >> $env:GITHUB_OUTPUT
+          $versions = @()
+          foreach ($t in (git tag --list 'v*')) {
+            $p = $t.TrimStart('v','V').Split('.')
+            if ($p.Count -ge 2 -and -not ($p | Where-Object { $_ -notmatch '^\d+$' })) {
+              while ($p.Count -lt 3) { $p += '0' }
+              $versions += [version]("{0}.{1}.{2}" -f $p[0], $p[1], $p[2])
+            }
+          }
+          if ($versions.Count -eq 0) { $next = [version]'1.0.1' }
+          else { $l = ($versions | Sort-Object)[-1]; $next = [version]("{0}.{1}.{2}" -f $l.Major, $l.Minor, ($l.Build + 1)) }
+          "tag=v$($next.ToString())"      >> $env:GITHUB_OUTPUT
+          "version=$($next.ToString()).0" >> $env:GITHUB_OUTPUT
+          Write-Host "Next release: v$($next.ToString())"
 
       - name: Build
         run: dotnet build VoidBackdrops/VoidBackdrops.csproj --configuration Release -p:Version=${{ steps.ver.outputs.version }}
@@ -51,44 +64,49 @@ jobs:
           if (-not $zip) { throw "latest.zip was not produced" }
           $manifest = Get-ChildItem -Path $zip.DirectoryName -Filter VoidBackdrops.json | Select-Object -First 1
           if (-not $manifest) { throw "VoidBackdrops.json was not produced" }
-          "zip=$($zip.FullName)" >> $env:GITHUB_OUTPUT
+          "zip=$($zip.FullName)"           >> $env:GITHUB_OUTPUT
           "manifest=$($manifest.FullName)" >> $env:GITHUB_OUTPUT
 
-      - name: Attach latest.zip to the release
+      - name: Create the release and attach latest.zip
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" "${{ steps.pkg.outputs.zip }}" --clobber
+        run: >
+          gh release create "${{ steps.ver.outputs.tag }}"
+          "${{ steps.pkg.outputs.zip }}"
+          --target "${{ github.sha }}"
+          --title "${{ steps.ver.outputs.tag }}"
+          --notes "Automated release ${{ steps.ver.outputs.tag }}"
 
       - name: Update repo.json
         shell: pwsh
         run: |
           $repo = "${{ github.repository }}"
-          $tag  = "${{ github.event.release.tag_name }}"
+          $tag  = "${{ steps.ver.outputs.tag }}"
           $url  = "https://github.com/$repo/releases/download/$tag/latest.zip"
           $m    = Get-Content "${{ steps.pkg.outputs.manifest }}" -Raw | ConvertFrom-Json
           $entry = [ordered]@{
-            Author              = $m.Author
-            Name                = $m.Name
-            InternalName        = $m.InternalName
-            AssemblyVersion     = $m.AssemblyVersion
+            Author                 = $m.Author
+            Name                   = $m.Name
+            InternalName           = $m.InternalName
+            AssemblyVersion        = $m.AssemblyVersion
             TestingAssemblyVersion = $m.AssemblyVersion
-            Punchline           = $m.Punchline
-            Description         = $m.Description
-            ApplicableVersion   = "any"
-            RepoUrl             = "https://github.com/$repo"
-            Tags                = @($m.Tags)
-            DalamudApiLevel     = $m.DalamudApiLevel
+            Punchline              = $m.Punchline
+            Description            = $m.Description
+            ApplicableVersion      = "any"
+            RepoUrl                = "https://github.com/$repo"
+            Tags                   = @($m.Tags)
+            DalamudApiLevel        = $m.DalamudApiLevel
             TestingDalamudApiLevel = $m.DalamudApiLevel
-            IsHide              = $false
-            IsTestingExclusive  = $false
-            LastUpdate          = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-            DownloadLinkInstall = $url
-            DownloadLinkUpdate  = $url
-            DownloadLinkTesting = $url
+            IsHide                 = $false
+            IsTestingExclusive     = $false
+            LastUpdate             = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+            DownloadLinkInstall    = $url
+            DownloadLinkUpdate     = $url
+            DownloadLinkTesting    = $url
           }
           ConvertTo-Json -InputObject @($entry) -Depth 5 | Set-Content repo.json -Encoding utf8
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add repo.json
-          git commit -m "repo.json: $($m.Name) $($m.AssemblyVersion)"
-          git push origin HEAD:${{ github.event.repository.default_branch }}
+          git commit -m "repo.json: $($m.Name) $($m.AssemblyVersion) [skip ci]"
+          git push origin HEAD:main
